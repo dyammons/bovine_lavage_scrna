@@ -4,8 +4,8 @@ bov_lav_4667180,H_2,Healthy,#2B8238,green
 bov_lav_4208263,H_3,Healthy,#6DB667,green
 bov_lav_4651130,H_4,Healthy,#93CA8B,green
 bov_lav_4630212,H_5,Healthy,#B4DCAB,green
-bov_lav_442565,D_1,Diseased,#645A9F,purple
-bov_lav_46425,D_2,Diseased,#846DBA,purple
-bov_lav_459511,D_3,Diseased,#AF90D2,purple
-bov_lav_453212,D_4,Diseased,#CAA9E3,purple
-bov_lav_35015,D_5,Diseased,#E4C3F2,purple
+bov_lav_442565,Dz_1,Diseased,#645A9F,purple
+bov_lav_46425,Dz_2,Diseased,#846DBA,purple
+bov_lav_459511,Dz_3,Diseased,#AF90D2,purple
+bov_lav_453212,Dz_4,Diseased,#CAA9E3,purple
+bov_lav_35015,Dz_5,Diseased,#E4C3F2,purple
