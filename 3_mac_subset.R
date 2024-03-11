@@ -31,7 +31,7 @@ seu.obj <- integrateData(seu.obj = seu.obj, dout = "../output/s2/", outName = ou
 
 #use clustree to identify clustering parameters that appear most appropriate
 clusTree(seu.obj = seu.obj, dout = "../output/clustree/", outName = outName, 
-            test_dims = 30, algorithm = 3, prefix = "integrated_snn_res.")
+            test_dims = 30, algorithm = 3, prefix = "RNA_snn_res.")
 
 #complete data visualization
 for (x in list("integrated.cca", "integrated.harmony", "integrated.joint", "integrated.rcpa")) {
@@ -57,8 +57,11 @@ saveRDS(seu.obj, paste0("../output/s3/", outName,"_S3.rds"))
 ########################################## <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 #load in data and metadata
-# outName <- "mac"
-# seu.obj <- readRDS(paste0("../output/s3/", outName,"_S3.rds"))
+outName <- "mac"
+seu.obj <- readRDS(paste0("../output/s3/", outName,"_S3.rds"))
+reduction <- "umap.integrated.harmony"
+clusMain <- "clusterID_integrated.harmony"
+contrast <- c("Diseased", "Healthy")
 # colArray <- read.csv("./metaData/.csv") #load colors if specified
 
 #generate viln plots using harmony clusters
@@ -156,3 +159,26 @@ pseudoDEG(metaPWD = paste0("../output/", outName, "/pseudoBulk/allCells_deg_meta
           inDir = paste0("../output/", outName, "/pseudoBulk/"), title = "All cells", 
           filterTerm = "ZZZZ", addLabs = NULL, mkDir = T
 )
+
+
+### Fig - Split UMAP of selected DEGs
+Idents(seu.obj) <- "cellSource"
+seu.obj.sub <- subset(x = seu.obj, downsample = min(table(seu.obj$cellSource)))
+
+df <- read.csv(paste0("../output/", outName, "/pseudoBulk/allCells/", outName, "_cluster_allCells_all_genes.csv")) %>% arrange(padj)
+upGenes <- df %>% filter(log2FoldChange > 0) %>% pull(gene)
+
+features <- head(upGenes, 10)
+
+p <- FeaturePlot(seu.obj.sub,features = features, pt.size = 0.1, reduction = reduction, split.by = "cellSource", order = T, cols = c("lightgrey","darkblue"), by.col = F) + labs(x = "UMAP1", y = "UMAP2") & theme(axis.text = element_blank(),
+                                                                                                                                                axis.title.y.right = element_text(size = 11),
+                                                                                                                                            
+                                                                                                                           axis.ticks = element_blank(),
+                                                                                                                           axis.title = element_blank(),
+                                                                                                                           axis.line = element_blank(),
+                                                                                                                           plot.title = element_text(size=11),
+                                                                                                                           title = element_blank(),
+                                                                                                                           plot.margin = unit(c(0, 0, 0, 0), "cm")
+                                                                                                                          ) 
+ggsave(paste("../output/", outName, "/", "splitFeats.png", sep = ""), width = 12, height = 4)
+

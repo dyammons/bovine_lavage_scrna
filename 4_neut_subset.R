@@ -28,11 +28,11 @@ seu.obj <- subset(seu.obj, subset = majorID == "neut") #specify subset of intere
 #integrate the data using all of the four Seurat v5 integration methods
 seu.obj <- integrateData(seu.obj = seu.obj, dout = "../output/s2/", outName = outName, 
                          runAllMethods = TRUE, normalization.method = "LogNormalize", indReClus = T,
-                         k = 20, min.cell = 20)
+                         k = 30, min.cell = 30)
 
 #use clustree to identify clustering parameters that appear most appropriate
 clusTree(seu.obj = seu.obj, dout = "../output/clustree/", outName = outName, 
-            test_dims = 30, algorithm = 3, prefix = "integrated_snn_res.")
+            test_dims = 30, algorithm = 3, prefix = "RNA_snn_res.")
 
 #complete data visualization
 for (x in list("integrated.cca", "integrated.harmony", "integrated.joint", "integrated.rcpa")) {

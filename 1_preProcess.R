@@ -26,7 +26,7 @@ seu.obj <- integrateData(din = "../output/s1/", dout = "../output/s2/", outName 
 
 # #use clustree to identify clustering parameters that appear most appropriate
 # clusTree(seu.obj = seu.obj, dout = "../output/clustree/", outName = outName, 
-#             test_dims = 45, algorithm = 3, prefix = "integrated_snn_res.")
+#             test_dims = 45, algorithm = 3, prefix = "RNA_snn_res.")
 
 #complete data visualization
 for (x in list("integrated.cca", "integrated.harmony", "integrated.joint", "integrated.rcpa")) {
