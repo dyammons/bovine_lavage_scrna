@@ -10,11 +10,13 @@ source("/pl/active/dow_lab/dylan/repos/scrna-seq/analysis-code/customFunctions_S
 #set output param
 outName <- "neut"
 reduction <- "umap.integrated.harmony"
+reduction2 <- "integrated.harmony" 
 clusMain <- "clusterID_integrated.harmony"
 contrast <- c("Diseased", "Healthy") #code will test first vs second
 
 #load in the proprocessed data & subset on pop of interest
-seu.obj <- readRDS("../output/s3/20240307_bov_lav_n5n5_dxVSh_S3.rds") #modify as needed
+seu.obj <- readRDS("../output/s3/20240313_bov_lav_n5n5_dxVSh_S3.rds")
+seu.obj <- cleanMeta(seu.obj)
 seu.obj <- loadMeta(seu.obj = seu.obj, metaFile = "./metaData/allCells_ID.csv", groupBy = "clusterID_integrated.harmony", metaAdd = "majorID")
 seu.obj <- loadMeta(seu.obj = seu.obj, metaFile = "./metaData/refColz.csv", groupBy = "orig.ident", metaAdd = "cellSource")
 seu.obj <- loadMeta(seu.obj = seu.obj, metaFile = "./metaData/refColz.csv", groupBy = "orig.ident", metaAdd = "name")
@@ -32,7 +34,7 @@ seu.obj <- integrateData(seu.obj = seu.obj, dout = "../output/s2/", outName = ou
 
 #use clustree to identify clustering parameters that appear most appropriate
 clusTree(seu.obj = seu.obj, dout = "../output/clustree/", outName = outName, 
-            test_dims = 30, algorithm = 3, prefix = "RNA_snn_res.")
+            test_dims = 30, algorithm = 3, prefix = "RNA_snn_res.", reduction = reduction2)
 
 #complete data visualization
 for (x in list("integrated.cca", "integrated.harmony", "integrated.joint", "integrated.rcpa")) {
@@ -98,10 +100,10 @@ ggsave(paste0("../output/", outName, "/", outName, "_rawUMAP.png"), width = 7, h
 
 ### Key feature plots
 features <- c("PTPRC","CD3E","CTSW", 
-                "DRA","CSF3R","S100A12", 
+                "CSF3R","S100A12", 
                 "CD68","FLT3","FCER1A", 
-                "GPNMB","VEGFB","CD34",
-                "COL1A2","MS4A1","TOP2A")
+                "GPNMB","VEGFB",
+                "MS4A1","TOP2A")
 p <- prettyFeats(seu.obj = seu.obj, nrow = 5, ncol = 3, title.size = 14, features = features, order = F, legJust = "top", reduction = reduction) 
 ggsave(paste0("../output/", outName, "/", outName, "_featPlots.png"), width = 9, height = 15)
 

@@ -11,11 +11,14 @@ library(circlize)
 #set output param
 outName <- "allCells"
 reduction <- "umap.integrated.harmony"
+reduction2 <- "integrated.harmony" 
 clusMain <- "clusterID_integrated.harmony"
 contrast <- c("Diseased", "Healthy") #code will test first vs second
 
 #load in preprocessed data
-seu.obj <- readRDS("../output/s3/20240307_bov_lav_n5n5_dxVSh_S3.rds") #modify as needed
+# seu.obj <- readRDS("../output/s3/20240307_bov_lav_n5n5_dxVSh_S3.rds")
+seu.obj <- readRDS("../output/s3/20240313_bov_lav_n5n5_dxVSh_S3.rds")
+seu.obj <- cleanMeta(seu.obj)
 seu.obj <- loadMeta(seu.obj = seu.obj, metaFile = "./metaData/allCells_ID.csv", groupBy = "clusterID_integrated.harmony", metaAdd = "majorID")
 seu.obj <- loadMeta(seu.obj = seu.obj, metaFile = "./metaData/refColz.csv", groupBy = "orig.ident", metaAdd = "cellSource")
 seu.obj <- loadMeta(seu.obj = seu.obj, metaFile = "./metaData/refColz.csv", groupBy = "orig.ident", metaAdd = "name")
@@ -52,7 +55,7 @@ ExportToCB_cus(seu.obj = seu.obj, dataset.name = outName, outDir = "../output/cb
                 reduction = reduction,  
                 colsTOkeep = c("orig.ident", "nCount_RNA", "nFeature_RNA", "percent.mt", "Phase", 
                                 "majorID", clusMain, "name", "cellSource"), 
-                skipEXPR = T, test = F,
+                skipEXPR = F, test = F,
                 feats = c("PTPRC", "CD3E", "CD8A", "GZMA", 
                             "IL7R", "ANPEP", "FLT3", "DLA-DRA", 
                             "CD4", "MS4A1", "PPBP", "HBM")
@@ -110,10 +113,10 @@ ggsave(paste0("../output/", outName, "/", outName, "_autodot_major_clusID.png"),
 
 ### Key feature plots
 features <- c("PTPRC","CD3E","CTSW", 
-                "DRA","CSF3R","S100A12", 
+                "CSF3R","S100A12", 
                 "CD68","FLT3","FCER1A", 
-                "GPNMB","VEGFB","CD34",
-                "COL1A2","MS4A1","TOP2A")
+                "GPNMB","VEGFB",
+                "MS4A1","TOP2A")
 p <- prettyFeats(seu.obj = seu.obj, nrow = 5, ncol = 3, title.size = 14, features = features, order = F, legJust = "top", reduction = reduction) 
 ggsave(paste0("../output/", outName, "/", outName, "_featPlots.png"), width = 9, height = 15)
 
@@ -195,6 +198,7 @@ linDEG(seu.obj = seu.obj, threshold = 1, thresLine = F, groupBy = "allCells", co
 
 
 ### Complete pseudobulk DGE by all cells
+seu.obj$cellSource <- factor(seu.obj$cellSource, levels = c("Healthy", "Diseased"))
 createPB(seu.obj = seu.obj, groupBy = "allCells", comp = "cellSource", biologicalRep = "name", lowFilter = T, dwnSam = F, 
          clusters = NULL, outDir = paste0("../output/", outName, "/pseudoBulk/")
 )
@@ -211,48 +215,25 @@ pseudoDEG(metaPWD = paste0("../output/", outName, "/pseudoBulk/allCells_deg_meta
 df <- read.csv(paste0("../output/", outName, "/pseudoBulk/All cells/allCells_cluster_All cells_all_genes.csv")) %>% arrange(padj)
 upGenes <- df %>% filter(log2FoldChange > 0) %>% pull(gene)
 dwnGenes <- df %>% filter(log2FoldChange < 0) %>% pull(gene)
-p <- plotGSEA(geneList = upGenes, geneListDwn = dwnGenes, category = "C5", termsTOplot = 12, subcategory = "GO:BP", 
-              upCol = "blue", dwnCol = "red", size = 4)
+p <- plotGSEA(geneList = upGenes, category = "C5", termsTOplot = 16, subcategory = "GO:BP", 
+              upCol = "red", dwnCol = "blue", size = 4, upOnly = T)
 
 minVal <- -20
-maxVal <- 30
-pi <- p + scale_x_continuous(limits = c(minVal, maxVal), name = "Signed log10(padj)") + 
-    theme(axis.title=element_text(size = 16)) + 
-    annotate("segment", x = -0.1, 
-             y = 17, 
-             xend = minVal, 
-             yend = 17, 
-             lineend = "round", linejoin = "bevel", linetype ="solid", colour = "blue",
-             size = 1, arrow = arrow(length = unit(0.1, "inches"))
-            ) + 
-    annotate(geom = "text", x = (minVal-0.1*1.5)/2-0.1*1.5,
-             y = 18,
-             label = "Repressed",
-             hjust = 0.5,
-             vjust = 1.5,
-             size = 5) +
-    annotate("segment", x = 0.1,
-             y = 17,
-             xend = maxVal,
-             yend = 17,
-             lineend = "round", linejoin = "bevel", linetype ="solid", colour = "red",
-             size = 1, arrow = arrow(length = unit(0.1, "inches"))
-            ) + 
-    annotate(geom = "text", x = (maxVal-0.1*1.5)/2+0.1*1.5, 
-             y = 18,
-             label = "Induced",
-             hjust = 0.5,
-             vjust = 1.5,
-             size = 5)
-ggsave(paste("../output/", outName, "/", outName, "_allCells_gsea.png", sep = ""), width = 10, height = 7)
+maxVal <- 12.5
+pi <- p + scale_x_continuous(limits = c(minVal, maxVal), name = "-log10(padj)") + 
+    theme(axis.title=element_text(size = 16),
+          plot.title = element_text(face = "bold", hjust = 0.5, size =  20)) + ggtitle("Gene ontology")
+ggsave(paste("../output/", outName, "/", outName, "_allCells_gsea.png", sep = ""), width = 8, height = 7)
 
 
 ### Or complete linDEG in each major group -- linDEG is no longer reccomedned
+seu.obj$cellSource <- factor(seu.obj$cellSource, levels = c("Diseased", "Healthy"))
 linDEG(seu.obj = seu.obj, threshold = 1, thresLine = F, groupBy = "majorID", comparison = "cellSource", 
        outDir = paste0("../output/", outName, "/linDEG/"), outName = outName, colUp = "red", colDwn = "blue", subtitle = F)
 
 
 ### Complete pseudobulk DGE by all cells
+seu.obj$cellSource <- factor(seu.obj$cellSource, levels = c("Healthy", "Diseased"))
 createPB(seu.obj = seu.obj, groupBy = "majorID", comp = "cellSource", biologicalRep = "name", lowFilter = T, dwnSam = F, 
          clusters = NULL, outDir = paste0("../output/", outName, "/pseudoBulk/")
 )
