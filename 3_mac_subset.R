@@ -77,7 +77,7 @@ ExportToCB_cus(seu.obj = seu.obj, dataset.name = outName, outDir = "../output/cb
                 reduction = reduction,  
                 colsTOkeep = c("orig.ident", "nCount_RNA", "nFeature_RNA", "percent.mt", "Phase", 
                                 "majorID", clusMain, "name", "cellSource"), 
-                skipEXPR = F, test = F,
+                skipEXPR = T, test = F,
                 feats = c("PTPRC", "CD3E", "CD8A", "GZMA", 
                           "IL7R", "ANPEP", "FLT3", "DLA-DRA", 
                           "CD4", "MS4A1", "PPBP", "HBM")
@@ -154,13 +154,33 @@ createPB(seu.obj = seu.obj, groupBy = "allCells", comp = "cellSource", biologica
          clusters = NULL, outDir = paste0("../output/", outName, "/pseudoBulk/")
 )
 
-pseudoDEG(metaPWD = paste0("../output/", outName, "/pseudoBulk/allCells_deg_metaData.csv"),
-          padj_cutoff = 0.05, lfcCut = 0.58, outDir = paste0("../output/", outName, "/pseudoBulk/"), 
-          outName = outName, 
+p_volc <- pseudoDEG(metaPWD = paste0("../output/", outName, "/pseudoBulk/allCells_deg_metaData.csv"),
+          padj_cutoff = 0.01, lfcCut = 1, outDir = paste0("../output/", outName, "/pseudoBulk/"), returnVolc = T,
+          outName = outName, strict_lfc = FALSE, 
           idents.1_NAME = contrast[1], idents.2_NAME = contrast[2],
           inDir = paste0("../output/", outName, "/pseudoBulk/"), title = "All cells", 
           filterTerm = "ZZZZ", addLabs = NULL, mkDir = T
 )
+
+
+p  <- prettyVolc(plot = p_volc[[1]], rightLab = "Up in disease", leftLab = "Up in healthy", lfcCut = 1) + 
+    labs(x = "log2(FC) Disease versus healthy") + NoLegend()
+ggsave(paste0("../output/", outName, "/", outName, "_volcPlot.png"), width = 7, height = 7)
+
+
+### Run GSEA
+
+df <- read.csv(paste0("../output/", outName, "/pseudoBulk/allCells/", outName, "_cluster_allCells_all_genes.csv")) %>% arrange(padj)
+
+upGenes <- df %>% filter(log2FoldChange > 0) %>% pull(gene)
+dwnGenes <- df %>% filter(log2FoldChange < 0) %>% pull(gene)
+p <- plotGSEA(geneList = upGenes, geneListDwn = dwnGenes, category = "C5", subcategory = "GO:BP", termsTOplot = 16, 
+              upCol = "red", dwnCol = "blue", size = 4 )
+
+minVal <- -20
+maxVal <- 10
+pi <- p + scale_x_continuous(limits = c(minVal, maxVal), name = "Signed log10(padj)")
+ggsave(paste("../output/", outName, "/", outName, "_gsea.png", sep = ""), width = 7, height = 4)
 
 
 ### Fig - Split UMAP of selected DEGs
