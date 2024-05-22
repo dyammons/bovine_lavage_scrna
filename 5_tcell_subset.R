@@ -186,3 +186,228 @@ p <- FeaturePlot(seu.obj.sub,features = features, pt.size = 0.1, reduction = red
                                                                                                                           ) 
 ggsave(paste("../output/", outName, "/", "splitFeats.png", sep = ""), width = 12, height = 4)
 
+
+
+
+
+### Complete pseudobulk DGE by all cells
+createPB(seu.obj = seu.obj, groupBy = clusMain, comp = "cellSource", biologicalRep = "name", lowFilter = T, dwnSam = F, 
+         clusters = NULL, outDir = paste0("../output/", outName, "/pseudoBulk/")
+)
+
+pseudoDEG(metaPWD = paste0("../output/", outName, "/pseudoBulk/clusterID_integrated.harmony_deg_metaData.csv"),
+          padj_cutoff = 0.05, lfcCut = 0.58, outDir = paste0("../output/", outName, "/pseudoBulk/"), 
+          outName = outName, 
+          idents.1_NAME = contrast[1], idents.2_NAME = contrast[2],
+          inDir = paste0("../output/", outName, "/pseudoBulk/"), title = "T cells", 
+          filterTerm = "ZZZZ", addLabs = NULL, mkDir = T
+)
+
+### Supp fig xx -- heatmap of sig DEGs
+files <- list.files(path = paste0("../output/", outName, "/pseudoBulk/", levels(seu.obj$clusterID_integrated.harmony), "/"), 
+           pattern = ".csv", all.files = FALSE, full.names = T)
+df.list <- lapply(unlist(files), read.csv, header = T)
+res.df <- do.call(rbind, df.list)
+
+res.df <- res.df %>% 
+    filter(!grepl("^ENSCAFG", gene)) %>%
+    group_by(gs_base) %>%
+    top_n(n = -20, wt = padj)
+
+cond_colz <- c("mediumseagreen","mediumpurple1")
+names(cond_colz) <- c("Healthy","Diseased")
+
+res.df2 <- res.df[!duplicated(res.df$gene), ] %>% filter(!grepl("^ENSCAFG", gene)) %>% top_n(n = -20, wt = padj)
+p <- splitDot(
+    seu.obj = seu.obj,
+    groupBy = "clusterID_integrated.harmony",
+    splitBy = "cellSource",
+    namedColz = cond_colz,
+    geneList_UP = filter(res.df2, log2FoldChange > 0) %>% pull(gene),
+    geneList_DWN = filter(res.df2, log2FoldChange < 0) %>% pull(gene),
+    geneColz = c("red", "blue")
+    )
+ggsave(paste0("../output/", outName, "/", "splitDot.png"), width = 14, height = 7)
+    
+
+clus <- gg_color_hue(length(levels(seu.obj$clusterID_integrated.harmony)))
+names(clus) <- paste0("(c", ((1:length(levels(seu.obj$clusterID_integrated.harmony))) - 1), ") ", levels(seu.obj$clusterID_integrated.harmony))
+clus_colz <- clus
+
+res.df$gs_base <- toupper(res.df$gs_base)
+ht <- sigDEG_heatmap(
+    seu.obj = seu.obj, groupBy = "clusterID_integrated.harmony", splitBy = "cellSource", forceCleanPlot = F, 
+    dge_res = res.df, lfc_thres = 1, cond_colz = cond_colz, clus_colz = clus,
+    saveName = paste0("../output/", outName, "/", "splitHeat.png"),
+    ht_height = 4500, ht_width = 3000
+)
+
+
+### Complete GSEA 
+lapply(levels(seu.obj$clusterID_integrated.harmony), function(group){
+
+    df <- res.df %>% filter(gs_base == group) %>% arrange(padj)
+
+    upGenes <- df %>% filter(log2FoldChange > 0) %>% pull(gene)
+    dwnGenes <- df %>% filter(log2FoldChange < 0) %>% pull(gene)
+        skip <- FALSE
+        if (length(upGenes) > 5 & length(dwnGenes) > 5) {
+            p <- plotGSEA(geneList = upGenes, geneListDwn = dwnGenes, category = "C5",
+                          subcategory = "GO:BP", upCol = "red", dwnCol = "blue", size = 3.5,
+                          saveRes = paste0("../output/", outName, "/gsea/", group, "_gseaRes.csv")
+                         )
+        } else if (length(upGenes) > 5 & length(dwnGenes) <= 5) {
+            p <- plotGSEA(geneList = upGenes, upOnly = T, category = "C5",
+                          subcategory = "GO:BP", upCol = "red", dwnCol = "blue", size = 3.5,
+                          saveRes = paste0("../output/", outName, "/gsea/", group, "_gseaRes.csv")
+                         )
+        } else if (length(upGenes) <= 5 & length(dwnGenes) > 5) {
+            p <- plotGSEA(geneListDwn = dwnGenes, dwnOnly = T, category = "C5",
+                          subcategory = "GO:BP", upCol = "red", dwnCol = "blue", size = 3.5,
+                          saveRes = ppaste0("../output/", outName, "/gsea/", group, "_gseaRes.csv")
+                         )
+        } else {
+            skip <- TRUE
+        }
+        if (nrow(p$data) > 0 & ! skip) {
+            minVal <- -15
+            maxVal <- 15
+            pi <- p + scale_x_continuous(limits = c(minVal, maxVal), name = "Signed log10(padj)")
+            ggsave(paste("../output/", outName, "/gsea/", group, "_gsea.png", sep = ""), width = 10, height = 5)
+        } else{
+            message(paste("No pathways enriched for", group, "comparison."))
+        }
+})
+
+
+#organize gsea results
+df.list <- lapply(c("gsea"), function(timepoint){
+    res.df.list <- lapply(levels(seu.obj$clusterID_integrated.harmony), function(group){
+        df <- try(read.csv(paste0("../output/", outName, "/", timepoint, "/", group, "_gseaRes.csv"), header = T))
+        if (class(df) != "try-error") {
+            if (nrow(df) > 0) {
+                df$CellType <- group
+                df$TimePoint <- timepoint
+                message(paste("Saving", group, "and", timepoint))
+                makePseudoDf <- FALSE
+            } else { makePseudoDf <- TRUE }
+        } else { makePseudoDf <- TRUE }
+        
+        if (makePseudoDf) {
+            df <- t(as.data.frame(
+                setNames(
+                    c(rep("NO_TERMS_ENRICHED", 10), 0, "NONE", group, timepoint),
+                    c("X", "ID", "Description", "GeneRatio", "BgRatio", "pvalue", 
+                      "p.adjust", "qvalue", "geneID", "Count", "x_axis", "direction", 
+                      "CellType", "TimePoint")
+                )
+            ))
+            rownames(df) <- 1
+                
+#                 "CellType" = group,
+#                 "TimePoint" = timepoint,
+#                 "ID" = "NO_TERMS_ENRICHED",
+#                 "x_axis" = 0
+        }
+        return(df)
+    })
+    res.df <- do.call(rbind, res.df.list)
+    return(res.df)
+})
+res.df <- do.call(rbind, df.list)
+
+#clean up the gsea terms
+res.df$ID <- gsub("GOBP_", "", res.df$ID)
+res.df$ID <- gsub("ANTIGEN_PROCESSING_AND_PRESENTATION_", "ANTIGEN_PRESENTATION_", res.df$ID)
+
+#data cleaning and conversion to matrix
+df <- res.df %>% 
+    mutate(
+        row = row_number(),
+        colName = paste0(CellType, "-_-", TimePoint)
+    ) %>% 
+    select(colName, ID, x_axis, row) %>%
+    pivot_wider(names_from = colName, values_from = x_axis) %>% 
+    as.data.frame()
+
+mat <- aggregate(df[ , 3:ncol(df)], by = df[1], FUN = function(x){sum(as.numeric(x), na.rm = TRUE)}) %>%
+    column_to_rownames("ID") %>%
+    as.matrix()
+
+mat <- mat[rownames(mat) != "NO_TERMS_ENRICHED", ]
+
+#set annotations
+cond_colz <- setNames(
+    c("#C47AEA"),
+    c("Disease_VS_Healthy")
+)
+clus_colz <- setNames(
+    gg_color_hue(length(unique(unlist(lapply(colnames(mat), function(x){strsplit(x, "-_-")[[1]][1]}))))),
+    unique(unlist(lapply(colnames(mat), function(x){strsplit(x, "-_-")[[1]][1]})))
+)
+ha <- HeatmapAnnotation(
+    Cluster = unlist(lapply(colnames(mat), function(x){strsplit(x, "-_-")[[1]][1]})),
+    border = TRUE,
+    col = list(Cluster = clus_colz),
+    annotation_legend_param = list(
+        Cluster = list(direction = "horizontal", nrow = 1)
+    ),
+    show_annotation_name = FALSE,
+    show_legend = FALSE
+)
+lgd1 <- Legend(labels = unique(unlist(lapply(colnames(mat), function(x){strsplit(x, "-_-")[[1]][1]}))),
+               legend_gp = gpar(fill = clus_colz), 
+               title = "Cluster", 
+               direction = "vertical",
+               nrow = 3, 
+               gap = unit(0.6, "cm")
+              )
+lgd2 <- Legend(labels = names(cond_colz),
+               legend_gp = gpar(fill = cond_colz), 
+               title = "Condition", 
+               direction = "vertical",
+               nrow = 2
+              )
+pd <- packLegend(lgd1, lgd2, max_width = unit(45, "cm"), 
+    direction = "horizontal", column_gap = unit(5, "mm"), row_gap = unit(0.5, "cm"))
+
+#complete hc and extract most sig genes to label
+M <- (1- cor(t(mat), method = "pearson"))/2
+hc_row <- hclust(as.dist(M), method = "complete")
+
+# M <- (1- cor(mat, method = "pearson"))/2
+# hc_col <- hclust(as.dist(M), method = "complete")
+
+topn <- rownames(mat)[rev(order(rowSums(abs(mat))))][1:50]
+topn <- topn[nchar(topn) <= 75]
+position <- match(topn, hc_row$labels[hc_row$order])
+ra_right <- rowAnnotation(key_feats = anno_mark(at = hc_row$order[position], 
+                                                labels = hc_row$labels[hc_row$order][position],
+                                                labels_gp = gpar(fontsize = 6)))
+
+#create the heatmap
+ht <- Heatmap(
+    mat,
+    name = "Signed log10(FDR)",
+    col = circlize::colorRamp2(c(-4, 0, 4), c("blue", "#EEEEEE", "red")),
+    cluster_rows = hc_row,
+    row_title_gp = gpar(fontsize = 24),
+    show_row_names = F,
+    cluster_columns = F,
+    show_column_names = F,
+    top_annotation = ha, 
+    column_names_gp = gpar(fontsize = 12),
+    right_annotation = ra_right,
+    column_split = unlist(lapply(colnames(mat), function(x){strsplit(x, "-_-")[[1]][2]})),
+    heatmap_legend_param = list(
+        direction = "horizontal",
+        legend_width = unit(6, "cm")
+    )
+)
+png(file = paste0("../output/", outName, "/",  outName, "_heatTest.png"), width = 3000, height = 4000, res = 400)
+par(mfcol = c(1, 1))   
+draw(
+    ht, padding = unit(c(2, 10, 2, 2), "mm"), heatmap_legend_side = "bottom",
+    annotation_legend_list = pd, annotation_legend_side = "top"
+)
+dev.off()
