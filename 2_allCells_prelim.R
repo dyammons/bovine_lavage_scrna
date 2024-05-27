@@ -38,8 +38,8 @@ ggsave(paste0("../output/", outName, "/", outName, "_QC_feats.png"), width = 9, 
 
 #generate viln plots using harmony clusters
 vilnPlots(seu.obj = seu.obj, groupBy = clusMain, outName = outName,
-          outDir = paste0("../output/viln/", outName, "/"), returnViln = T,
-          resume = T, resumeFile = paste0("../output/viln/", outName, "/", outName, "_", clusMain ,"_gene_list.csv")
+          outDir = paste0("../output/viln/", outName, "/"), returnViln = F#,
+#           resume = T, resumeFile = paste0("../output/viln/", outName, "/", outName, "_", clusMain ,"_gene_list.csv")
          )
 
 
