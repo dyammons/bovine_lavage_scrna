@@ -106,20 +106,21 @@ seu.obj <- convertTOclusID(seu.obj = seu.obj, metaSlot = "majorID_sub", newMetaN
 # colArray <- read.csv("./metaData/.csv") #load colors if specified
 
 #generate viln plots using harmony clusters
-vilnPlots(seu.obj = seu.obj, groupBy = clusMain, outName = outName,
-          outDir = paste0("../output/viln/", outName, "/"), returnViln = T 
+vilnPlots(seu.obj = seu.obj, groupBy = "majorID_sub", outName = outName,
+          outDir = paste0("../output/viln/", outName, "/"), returnViln = F
          )
 
 ### Export data for interactive cell browser
-ExportToCB_cus(seu.obj = seu.obj, dataset.name = outName, outDir = "../output/cb_input/", 
-                markers = paste0("../output/viln/", outName, "/", outName, "_", clusMain, "_gene_list.csv"),
+ExportToCB_cus(seu.obj = seu.obj, dataset.name = paste0(outName, "_CLEAN"), outDir = "../output/cb_input/", 
+                markers = paste0("../output/viln/", outName, "/tcell_majorID_sub_gene_list.csv"),
                 reduction = reduction,  
                 colsTOkeep = c("orig.ident", "nCount_RNA", "nFeature_RNA", "percent.mt", "Phase", 
-                                "majorID", clusMain, "name", "cellSource"), 
+                                "majorID", clusMain, "majorID_sub", "name", "cellSource"), 
                 skipEXPR = F, test = F,
-                feats = c("PTPRC", "CD3E", "CD8A", "GZMA", 
-                          "IL7R", "ANPEP", "FLT3", "DLA-DRA", 
-                          "CD4", "MS4A1", "PPBP", "HBM")
+                feats = c("CD4", "S100A13", "S100A11", 
+                          "CD8A", "CCL5", "GZMK", "GZMA", 
+              "CTLA4", "IL23R", "CTSW", "GNLY", 
+              "BAG3", "HSPA1A", "BLK", "ISG15")
 )    
 
 ### singleR to ID cells
@@ -391,34 +392,81 @@ ggsave(paste("../output/", outName, "/",outName, "_montePerm.png", sep = ""), wi
 
 # With stressed T cells identified as upregualted in disease, attempt to better
 # define the cluster
-p_volc <- btwnClusDEG(
-    seu.obj = seu.obj, groupBy = "majorID_sub", idents.1 = "T_stressed", idents.2 = NULL, filterTerm = "^ENSBTAG",
-    bioRep = "name", padj_cutoff = 0.01, lfcCut = 1, labSize = 4.5, strict_lfc = T, 
-    minCells = 25, outDir = paste0("../output/", outName, "/"), title = "T_stressed_VS_otherTcells", 
-    idents.1_NAME = "T_stressed", idents.2_NAME = "Other T cells", returnVolc = T, 
-    doLinDEG = F, paired = T, addLabs = NULL, lowFilter = T, dwnSam = F, setSeed = 24
-   )
+lapply(c("gd_T1", "gd_T2", "T_stressed"), function(x){
+    p_volc <- btwnClusDEG(
+        seu.obj = seu.obj, groupBy = "majorID_sub", idents.1 = x, idents.2 = NULL, filterTerm = "^ENSBTAG",
+        bioRep = "name", padj_cutoff = 0.01, lfcCut = 1, labSize = 4.5, strict_lfc = T, 
+        minCells = 5, outDir = paste0("../output/", outName, "/"), title = paste0(x, "_VS_otherTcells"), 
+        idents.1_NAME = x, idents.2_NAME = "Other T cells", returnVolc = T, 
+        doLinDEG = F, paired = T, addLabs = NULL, lowFilter = T, dwnSam = F, setSeed = 24
+       )
 
-p <- prettyVolc(
-    plot = p_volc[[1]], rightLab = "T_stressed", lfcCut = 1,
-    leftLab = "Other T cells", arrowz = T
-    ) + 
-    labs(x = "log2(FC)") + 
-    theme(
-        axis.title = element_text(size = 24),
-        axis.text = element_text(size = 18),
-        plot.title = element_blank()
-    ) + ggtitle("T_stressed vs other neutrophils")
+    p <- prettyVolc(
+        plot = p_volc[[1]], rightLab = x, lfcCut = 1,
+        leftLab = "Other T cells", arrowz = T
+        ) + 
+        labs(x = "log2(FC)") + 
+        theme(
+            axis.title = element_text(size = 24),
+            axis.text = element_text(size = 18),
+            plot.title = element_blank()
+        ) + ggtitle(paste0(x, " vs other T cells"))
 
-ggsave(paste0("../output/", outName, "/", outName, "_T_stressed.png"), width = 7, height = 7)
+    ggsave(paste0("../output/", outName, "/", outName, "_", x, ".png"), width = 7, height = 7)
+    
+    upGenes <- p$data[p$data$threshold == "Up", ]$gene
+    p <- plotGSEA(
+        geneList = upGenes, category = "C5", subcategory = "GO:BP", species = "bovine", simplify_res = T,
+        upCol = "red", dwnCol = "blue", size = 3.5, upOnly = T, termsTOplot = 16, lolli = TRUE,
+        saveRes = paste0("../output/", outName, "/", x, "_gseaRes.csv")
+    )
+    ggsave(paste0("../output/", outName, "/", outName, "_", x, "_gsea.png"), width = 10, height = 7)
 
-upGenes <- p$data[p$data$threshold == "Up", ]$gene
-p <- plotGSEA(
-    geneList = upGenes, category = "C5", subcategory = "GO:BP", species = "bovine",
-    upCol = "red", dwnCol = "blue", size = 3.5, upOnly = T, termsTOplot = 16, lolli = TRUE,
-    saveRes = paste0("../output/", outName, "/T_stressed_gseaRes.csv")
-)
-ggsave(paste0("../output/", outName, "/", outName, "_T_stressed_gsea.png"), width = 10, height = 7)
+})
+
+# Idents(seu.obj) <- "majorID_sub"
+# cluster.markers <- FindMarkers(seu.obj, ident.1 = "gd_T1", only.pos = T, test.use = "MAST") 
+
+### Look at impact of WC on cell type gene signatures
+modulez <- list("WC" = c("WC-7", "WC1.3", "WC1", "WC1-12"))
+
+names(modulez) <- paste0(names(modulez),"_SIG")
+seu.obj <- AddModuleScore(seu.obj,
+                          features = modulez,
+                         name = "_score")
+names(seu.obj@meta.data)[grep("_score", names(seu.obj@meta.data))] <- names(modulez)
+
+features <- names(modulez)
+names(seu.obj@meta.data)[grep("_score", names(seu.obj@meta.data))] <- names(modulez)
+
+fig_supp <- majorDot(seu.obj = seu.obj, groupBy = "majorID_sub",
+                     features = features
+                    ) + theme(legend.position = "bottom",
+                              axis.title.y = element_blank(),
+                              plot.margin = margin(7, 7, 0, 50, "pt"),
+                              legend.box="vertical", 
+                              legend.margin=margin()
+                             ) + 
+    labs(x = "Gene set") + 
+    scale_y_discrete(position = "right") + guides(size = guide_legend(nrow = 2, byrow = F, title = 'Percent\nenriched')) + 
+    guides(color = guide_colorbar(title = 'Scaled\nenrichment score'))  
+ggsave(paste("../output/", outName, "/", outName, "_modScores.png", sep = ""), width = 2, height = 7)
+
+fig_supp <- majorDot(seu.obj = seu.obj, groupBy = "majorID_sub",
+                     features = unlist(unname(modulez))
+                    ) + theme(legend.position = "bottom",
+                              axis.title.y = element_blank(),
+                              plot.margin = margin(7, 7, 0, 50, "pt"),
+                              legend.box="vertical", 
+                              legend.margin=margin()
+                             ) + 
+    labs(x = "Gene set") + 
+    scale_y_discrete(position = "right") + guides(size = guide_legend(nrow = 2, byrow = F, title = 'Percent\nenriched')) + 
+    guides(color = guide_colorbar(title = 'Scaled\nenrichment score'))  
+ggsave(paste("../output/", outName, "/", outName, "_indFeats.png", sep = ""), width = 4, height = 7)
+
+
+
 
 
 ### Complete pseudobulk DGE by all cells
