@@ -94,7 +94,7 @@ clusTree(seu.obj = seu.obj, dout = "../output/clustree/", outName = outName,
 # for (x in list("integrated.cca", "integrated.harmony", "integrated.joint", "integrated.rcpa")) {
 for (x in list("integrated.harmony")) {
     seu.obj <- dataVisUMAP(seu.obj = seu.obj, outDir = "../output/s3/", outName = paste0(outName, "_", x), 
-                           final.dims = 30, final.res = 1.2, stashID = "clusterID_sub", algorithm = 3, min.dist = 0.3, n.neighbors = 30,
+                           final.dims = 30, final.res = 0.6, stashID = "clusterID_sub", algorithm = 3, min.dist = 0.2, n.neighbors = 20,
                            prefix = "RNA_snn_res.", assay = "RNA", reduction = x,
                            saveRDS = F, return_obj = T, returnFeats = T,
                            features = c("PTPRC", "CD3E", "CD8A", "GZMA", 
@@ -103,15 +103,8 @@ for (x in list("integrated.harmony")) {
                           )
 }
 
-#generate viln plots using harmony clusters
-vilnPlots(seu.obj = seu.obj, groupBy = "clusterID_sub_integrated.harmony", outName = outName,
-          outDir = paste0("../output/viln/", outName, "/"), returnViln = T
-         )
-
 saveRDS(seu.obj, paste0("../output/s3/", outName,"CLEAN_S3.rds"))
 
-
-saveRDS(seu.obj, paste0("../output/s3/", outName,"_S3.rds"))
 
 ######################################## <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 #######   end preprocessing   ######## <<<<<<<<<<<<<<
@@ -125,9 +118,9 @@ saveRDS(seu.obj, paste0("../output/s3/", outName,"_S3.rds"))
 
 #load in data and metadata
 outName <- "mac"
-seu.obj <- readRDS(paste0("../output/s3/", outName,"_S3.rds"))
+seu.obj <- readRDS(paste0("../output/s3/", outName,"CLEAN_S3.rds"))
 reduction <- "umap.integrated.harmony"
-clusMain <- "clusterID_integrated.harmony"
+clusMain <- "clusterID_sub_integrated.harmony"
 contrast <- c("Diseased", "Healthy")
 seu.obj$majorID_sub <- droplevels(seu.obj$clusterID_integrated.harmony)
 seu.obj$cellSource <- droplevels(seu.obj$cellSource)
@@ -138,21 +131,21 @@ seu.obj$colz <- droplevels(seu.obj$colz)
 
 #generate viln plots using harmony clusters
 vilnPlots(seu.obj = seu.obj, groupBy = clusMain, outName = outName,
-          outDir = paste0("../output/viln/", outName, "/"), returnViln = T 
+          outDir = paste0("../output/viln/", outName, "/"), returnViln = F
          )
 
 ### Export data for interactive cell browser
 ExportToCB_cus(seu.obj = seu.obj, dataset.name = paste0(outName, "_CLEAN"), outDir = "../output/cb_input/", 
-                markers = paste0("../output/viln/", outName, "/mac_clusterID_sub_gene_list.csv"),
+                markers = paste0("../output/viln/", outName, "/mac_clusterID_sub_integrated.harmony_gene_list.csv"),
                 reduction = reduction,  
                 colsTOkeep = c("orig.ident", "nCount_RNA", "nFeature_RNA", "percent.mt", "Phase", 
                                 "majorID", clusMain, "name", "cellSource"), 
                 skipEXPR = F, test = F,
                 feats = c("CD24", "EBF1", "GPNMB", 
                           "RELB", "IL1A", "C1QC", "BOLA-DRA", 
-              "NIPA1", "ISG15", "OAS1Y", "CSF3R", 
-              "SDS", "MEFV", "CD68", "APOE")
-)    
+                          "NIPA1", "ISG15", "OAS1Y", "CSF3R", 
+                          "SDS", "MEFV", "CD68", "APOE")
+              )    
 
 #use singleR to ID cells
 singleR(seu.obj = seu.obj, clusters = clusMain, reduction = reduction, 
