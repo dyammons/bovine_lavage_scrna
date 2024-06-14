@@ -239,7 +239,7 @@ createPB(seu.obj = seu.obj, groupBy = "majorID", comp = "cellSource", biological
 )
 
 pseudoDEG(metaPWD = paste0("../output/", outName, "/pseudoBulk/majorID_deg_metaData.csv"),
-          padj_cutoff = 0.05, lfcCut = 0.58, outDir = paste0("../output/", outName, "/pseudoBulk/"), 
+          padj_cutoff = 0.05, lfcCut = 1, strict_lfc = F, outDir = paste0("../output/", outName, "/pseudoBulk/"), 
           outName = outName, 
           idents.1_NAME = contrast[1], idents.2_NAME = contrast[2],
           inDir = paste0("../output/", outName, "/pseudoBulk/"), title = "All cells", 
@@ -250,7 +250,6 @@ pseudoDEG(metaPWD = paste0("../output/", outName, "/pseudoBulk/majorID_deg_metaD
 
 ### heatmap of dge results by major cell types
 files <- lapply(levels(seu.obj$majorID), function(x){paste0("../output/", outName, "/pseudoBulk/", x, "/", outName, "_cluster_", x, "_all_genes.csv")})
-files <- files[1:5] #run b/c too few stromal cells
 
 df.list <- lapply(files, read.csv, header = T)
 
@@ -284,6 +283,44 @@ ht <- Heatmap(cnts_mat,#name = "mat", #col = col_fun,
               })
 draw(ht, padding = unit(c(2, 12, 2, 5), "mm"),show_heatmap_legend = FALSE)
 dev.off()
+
+### Complete GSEA 
+res.df <- do.call(rbind, df.list) 
+lapply(levels(seu.obj$majorID), function(group){
+    
+    df <- res.df %>% filter(gs_base == toupper(group)) %>% arrange(padj)
+
+    upGenes <- df %>% filter(log2FoldChange > 0) %>% pull(gene)
+    dwnGenes <- df %>% filter(log2FoldChange < 0) %>% pull(gene)
+        skip <- FALSE
+        if (length(upGenes) > 5 & length(dwnGenes) > 5) {
+            p <- plotGSEA(geneList = upGenes, geneListDwn = dwnGenes, category = "C5", termsTOplot = 16, 
+                          subcategory = "GO:BP", upCol = "red", dwnCol = "blue", size = 3.5,
+                          saveRes = paste0("../output/", outName, "/gsea/", group, "_gseaRes.csv")
+                         )
+        } else if (length(upGenes) > 5 & length(dwnGenes) <= 5) {
+            p <- plotGSEA(geneList = upGenes, upOnly = T, category = "C5", termsTOplot = 16, 
+                          subcategory = "GO:BP", upCol = "red", dwnCol = "blue", size = 3.5,
+                          saveRes = paste0("../output/", outName, "/gsea/", group, "_gseaRes.csv")
+                         )
+        } else if (length(upGenes) <= 5 & length(dwnGenes) > 5) {
+            p <- plotGSEA(geneListDwn = dwnGenes, dwnOnly = T, category = "C5", termsTOplot = 16, 
+                          subcategory = "GO:BP", upCol = "red", dwnCol = "blue", size = 3.5,
+                          saveRes = paste0("../output/", outName, "/gsea/", group, "_gseaRes.csv")
+                         )
+        } else {
+            skip <- TRUE
+        }
+        if (nrow(p$data) > 0 & ! skip) {
+            minVal <- -15
+            maxVal <- 10
+            pi <- p + scale_x_continuous(limits = c(minVal, maxVal), name = "Signed log10(padj)") + ggtitle(group)
+            ggsave(paste("../output/", outName, "/gsea/", group, "_gsea.png", sep = ""), width = 10, height = 5)
+        } else{
+            message(paste("No pathways enriched for", group, "comparison."))
+        }
+})
+
 
 
           
