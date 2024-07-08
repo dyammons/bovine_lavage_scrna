@@ -55,15 +55,15 @@ seu.obj <- subset(seu.obj, invert = T, subset = clusterID_integrated.harmony %in
 seu.obj <- integrateData(seu.obj = seu.obj, dout = "../output/s2/", outName = outName, vars.to.regress = "percent.mt",
                          runAllMethods = FALSE, method = "HarmonyIntegration", normalization.method = "LogNormalize", indReClus = T)
 
-#use clustree to identify clustering parameters that appear most appropriate
-clusTree(seu.obj = seu.obj, dout = "../output/clustree/", outName = outName, 
-            test_dims = 30, algorithm = 3, prefix = "RNA_snn_res.", reduction = "integrated")
+# #use clustree to identify clustering parameters that appear most appropriate
+# clusTree(seu.obj = seu.obj, dout = "../output/clustree/", outName = outName, 
+#             test_dims = 30, algorithm = 3, prefix = "RNA_snn_res.", reduction = "integrated")
 
 #complete data visualization
 seu.obj <- dataVisUMAP(seu.obj = seu.obj, outDir = "../output/s3/", outName = paste0(outName, "_integrated"), 
                        final.dims = 30, final.res = 1.2, stashID = "clusterID_sub", algorithm = 3, min.dist = 0.3, n.neighbors = 30,
                        prefix = "RNA_snn_res.", assay = "RNA", reduction = "integrated",
-                       saveRDS = T, return_obj = T, returnFeats = T,
+                       saveRDS = F, return_obj = T, returnFeats = T,
                        features = c("PTPRC", "CD3E", "CD8A", "GZMA", 
                                     "IL7R", "ANPEP", "FLT3", "DLA-DRA", 
                                     "CD4", "MS4A1", "PPBP","HBM")
@@ -74,33 +74,7 @@ vilnPlots(seu.obj = seu.obj, groupBy = "clusterID_sub_integrated", outName = out
           outDir = paste0("../output/viln/", outName, "/"), returnViln = T
          )
 
-# #identified more low quality cells - remove them - c10 (abnormal gex patterns), c17 (high pct mt enriched) and c20 (contaminating T cells) -- c15 may also need to be removed --
-# seu.obj <- subset(seu.obj, invert = T, subset = clusterID_sub_integrated.harmony %in% c(10, 17, 20))
-# seu.obj$clusterID_sub_filterStep2 <- seu.obj$clusterID_sub_integrated.harmony
-
-# #integrate the data using all of the four Seurat v5 integration methods
-# seu.obj <- integrateData(seu.obj = seu.obj, dout = "../output/s2/", outName = outName, runAllMethods = FALSE, 
-#                          method = "HarmonyIntegration", normalization.method = "LogNormalize", indReClus = T,
-#                          vars.to.regress = "percent.mt")
-
-# #use clustree to identify clustering parameters that appear most appropriate
-# clusTree(seu.obj = seu.obj, dout = "../output/clustree/", outName = outName, 
-#             test_dims = 30, algorithm = 3, prefix = "RNA_snn_res.", reduction = "integrated.harmony")
-
-# #complete data visualization
-# # for (x in list("integrated.cca", "integrated.harmony", "integrated.joint", "integrated.rcpa")) {
-# for (x in list("integrated.harmony")) {
-#     seu.obj <- dataVisUMAP(seu.obj = seu.obj, outDir = "../output/s3/", outName = paste0(outName, "_", x), 
-#                            final.dims = 30, final.res = 0.6, stashID = "clusterID_sub", algorithm = 3, min.dist = 0.2, n.neighbors = 20,
-#                            prefix = "RNA_snn_res.", assay = "RNA", reduction = x,
-#                            saveRDS = F, return_obj = T, returnFeats = T,
-#                            features = c("PTPRC", "CD3E", "CD8A", "GZMA", 
-#                                         "IL7R", "ANPEP", "FLT3", "DLA-DRA", 
-#                                         "CD4", "MS4A1", "PPBP","HBM")
-#                           )
-# }
-
-# saveRDS(seu.obj, paste0("../output/s3/", outName,"CLEAN_S3.rds"))
+saveRDS(seu.obj, paste0("../output/s3/", outName,"_REGpctmt_CLEAN_S3.rds"))
 
 
 # ######################################## <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
