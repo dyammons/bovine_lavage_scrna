@@ -1,4 +1,6 @@
 #!/usr/bin/Rscript
+#to load in singularity container, use this:
+#singularity run -B $PWD/../../../ --fakeroot ../software/r4.3.2-seurat5
 
 #load custom functions & packages
 source("/pl/active/dow_lab/dylan/repos/scrna-seq/analysis-code/customFunctions_Seuratv5.R")
@@ -9,7 +11,7 @@ library(circlize)
 #################################### <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 #set output param
-outName <- "allCells"
+outName <- "allCells_viral"
 reduction <- "umap.integrated.harmony"
 reduction2 <- "integrated.harmony" 
 clusMain <- "clusterID_integrated.harmony"
@@ -17,9 +19,9 @@ contrast <- c("Diseased", "Healthy") #code will test first vs second
 
 #load in preprocessed data
 # seu.obj <- readRDS("../output/s3/20240307_bov_lav_n5n5_dxVSh_S3.rds")
-seu.obj <- readRDS("../output/s3/20240313_bov_lav_n5n5_dxVSh_S3.rds")
+seu.obj <- readRDS("../output/s3/20240708_bov_lav_n5n5_dxVSh_viral_S3.rds")
 seu.obj <- cleanMeta(seu.obj)
-seu.obj <- loadMeta(seu.obj = seu.obj, metaFile = "./metaData/allCells_ID.csv", groupBy = "clusterID_integrated.harmony", metaAdd = "majorID")
+seu.obj <- loadMeta(seu.obj = seu.obj, metaFile = "./metaData/allCells_viral_ID_edited.csv", groupBy = "clusterID_integrated.harmony", metaAdd = "majorID")
 seu.obj <- loadMeta(seu.obj = seu.obj, metaFile = "./metaData/refColz.csv", groupBy = "orig.ident", metaAdd = "cellSource")
 seu.obj <- loadMeta(seu.obj = seu.obj, metaFile = "./metaData/refColz.csv", groupBy = "orig.ident", metaAdd = "name")
 seu.obj <- loadMeta(seu.obj = seu.obj, metaFile = "./metaData/refColz.csv", groupBy = "name", metaAdd = "colz")
@@ -36,10 +38,13 @@ p <- prettyFeats(seu.obj = seu.obj, reduction = reduction, nrow = 1, ncol = 3, f
                     color = "black", order = F, pt.size = 0.0000001, title.size = 18)
 ggsave(paste0("../output/", outName, "/", outName, "_QC_feats.png"), width = 9, height = 3)
 
+
+
+
 #generate viln plots using harmony clusters
 vilnPlots(seu.obj = seu.obj, groupBy = clusMain, outName = outName,
-          outDir = paste0("../output/viln/", outName, "/"), returnViln = F#,
-#           resume = T, resumeFile = paste0("../output/viln/", outName, "/", outName, "_", clusMain ,"_gene_list.csv")
+          outDir = paste0("../output/viln/", outName, "/"), returnViln = F,
+           resume = T, resumeFile = paste0("../output/viln/", outName, "/", outName, "_", clusMain ,"_gene_list.csv")
          )
 
 
@@ -47,7 +52,6 @@ vilnPlots(seu.obj = seu.obj, groupBy = clusMain, outName = outName,
 vilnPlots(seu.obj = seu.obj, groupBy = "major_clusID", outName = outName,
           outDir = paste0("../output/viln/", outName, "/"), returnViln = F
          )
-
 
 ### Export data for interactive cell browser
 ExportToCB_cus(seu.obj = seu.obj, dataset.name = outName, outDir = "../output/cb_input/", 
@@ -68,9 +72,10 @@ singleR(seu.obj = seu.obj, clusters = clusMain, reduction = reduction,
 
 
 #set colors - run after determining majorIDs -- MANUAL
-colArray <- read.csv("./metaData/allCells_ID.csv")
+colArray <- read.csv("./metaData/allCells_viral_ID_edited.csv")
 # colArray <- colArray %>% arrange(majorID) %>% mutate(newCol = gg_color_hue(nrow(colArray)*3)[ c( rep(FALSE, 2), TRUE ) ] ) %>% arrange(clusterID_integrated.harmony)
 # write.csv(colArray,"./metaData/allCells_ID.csv", row.names = F)
+###I don't know what the above colArray stuff means, but if you want to manually change hex codes in the allCells_ID.csv, this is a good website to look at colors and get hex codes: https://htmlcolorcodes.com/
 
 
 ### Plot initial cluster UMAP
@@ -82,9 +87,22 @@ pi <- DimPlot(seu.obj,
                 label = TRUE,
                 label.box = TRUE
 ) + NoLegend()
-p <- cusLabels(plot = pi, shape = 21, size = 8, alpha = 0.8, labCol = "black", smallAxes = F) 
+p <- cusLabels(plot = pi, shape = 21, size = 8, alpha = 0.8, labCol = "black", smallAxes = F)
 ggsave(paste0("../output/", outName, "/", outName, "_rawUMAP.png"), width = 7, height = 7)
 
+#from Dylan's paper...take out later
+
+pi <- DimPlot(seu.obj, 
+              reduction = reduction, 
+              group.by = clusMain,
+              cols = colArray$newCol,
+              pt.size = 0.25,
+              label = TRUE,
+              label.box = TRUE,
+              repel = TRUE
+ )
+p <- cusLabels(plot = pi, shape = 21, size = 8, alpha = 0.8, labCol = colArray$newCol, nudge_x = c(rep(0,length(colArray$newCol)-1),0.75)) + NoLegend()
+ggsave(paste("./output/", outName, "/", outName, "_rawUMAP.png", sep = ""), width = 7, height = 7)
 
 #after setting majorID, run this code some code to load in colors
 colArray.sub <- colArray[!is.na(colArray$majCol), ]
@@ -112,27 +130,30 @@ ggsave(paste0("../output/", outName, "/", outName, "_autodot_major_clusID.png"),
 
 
 ### Key feature plots
-features <- c("PTPRC","CD3E","CTSW", 
-                "CSF3R","S100A12", 
-                "CD68","FLT3","FCER1A", 
-                "GPNMB","VEGFB",
-                "MS4A1","TOP2A")
+features <- c("PTPRC","CD3E","CD8A", 
+                "CD4","CSF3R", 
+                "SELL","CD163","FCGR2A", 
+                "EPCAM","CD14",
+                "MKI67","TOP2A", "HLA-DRA", "PAX5", "BRSV-D1P01-gp01")
 p <- prettyFeats(seu.obj = seu.obj, nrow = 5, ncol = 3, title.size = 14, features = features, order = F, legJust = "top", reduction = reduction) 
 ggsave(paste0("../output/", outName, "/", outName, "_featPlots.png"), width = 9, height = 15)
 
 
 ### Key dot plot features -- this is best with majorID loaded in
 p <- majorDot(seu.obj = seu.obj, groupBy = "majorID",
-              features = c("ANPEP", "DLA-DRA", "FLT3", "IGHM", "JCHAIN",
-                           "MS4A1", "S100A12", "SERPINA1", "CD4", "IL7R", 
-                           "CD52", "CCL5", "GZMB", "KLRB1", "CSTB", "IL5RA", 
-                           "IL17RB", "GATA3", "TOP2A", "CENPF", "CD34", "CD109")
+              features = c("ANPEP", "HLA-DRA", "IFIT3", "IL17A", "JCHAIN",
+                           "MS4A1", "S100A12", "BRSV-D1P01-gp01", "CD4", "IL7R", 
+                           "CD52", "CCL5", "GZMB", "KLRB1", "CTSW", "CD163", 
+                           "IL23R", "GATA3", "TOP2A", "CENPF", "FCGR3A", "CD109")
 ) + theme(axis.title = element_blank(),
           axis.text = element_text(size = 12))
 ggsave(paste0("../output/", outName, "/", outName, "_majorDot.png"), width = 8, height = 6)
 
+#View color palette
 
-### UMAP by sample -- if unequal sample size downsample by cellSource
+colors <-show_col(hue_pal()(50))
+
+###UMAP by cell type
 Idents(seu.obj) <- "orig.ident"
 set.seed(12)
 seu.obj.ds <- subset(x = seu.obj, downsample = min(table(seu.obj$orig.ident)))
@@ -146,16 +167,55 @@ pi <- DimPlot(seu.obj.ds,
 )
 p <- formatUMAP(pi) + labs(colour="Cell source:") + theme(legend.position = "top", 
                                                             legend.direction = "horizontal",
+                                                            legend.title=element_text(size=8)
+                                                            ) + guides(colour = guide_legend(nrow = 1, override.aes = list(size = 2)))
+ggsave(paste0("../output/", outName, "/", outName, "_umap_bySample.png"), width =8, height = 8)
+
+### UMAP by sample -- if unequal sample size downsample by cellSource
+seu.obj$name <- factor(seu.obj$name, levels = c("H_1", "H_2", "H_3", "H_4", "H_5", "Dz_1", "Dz_2", "Dz_3", "Dz_4", "Dz_5"))
+seu.obj$colz <- factor(seu.obj$colz, levels = c("#004616", "#2B8238", "#6DB667", "#93CA8B", "#B4DCAB", "#645A9F", "#846DBA", "#AF90D2", "#CAA9E3", "#E4C3F2"))
+Idents(seu.obj) <- "orig.ident"
+set.seed(12)
+seu.obj.ds <- subset(x = seu.obj, downsample = min(table(seu.obj$orig.ident)))
+pi <- DimPlot(seu.obj.ds, 
+                reduction = reduction, 
+                group.by = "name",
+                cols = levels(seu.obj.ds$colz),
+                pt.size = 0.25,
+                label = FALSE,
+                shuffle = TRUE
+)
+p <- formatUMAP(pi) + labs(colour="Cell source:") + theme(legend.position = "top", 
+                                                            legend.direction = "horizontal",
+                                                            legend.title=element_text(size=8)
+                                                            ) + guides(colour = guide_legend(nrow = 1, override.aes = list(size = 2)))
+ggsave(paste0("../output/", outName, "/", outName, "_umap_bySample.png"), width =8, height = 8)
+
+
+###UMAP by group--note cannot do this in sequential order after UMAP by sample
+Idents(seu.obj) <- "cellSource"
+set.seed(12)
+seu.obj.ds <- subset(x = seu.obj, downsample = min(table(seu.obj$cellSource)))
+pi <- DimPlot(seu.obj.ds, 
+                reduction = reduction, 
+                group.by = "name",
+                cols = levels(seu.obj.ds$colz),
+                pt.size = 0.25,
+                label = FALSE,
+                shuffle = TRUE
+)
+p <- formatUMAP(pi) + labs(colour="Cell source:") + theme(legend.position = "top", 
+                                                            legend.direction = "horizontal",
                                                             legend.title=element_text(size=12)
-                                                            ) + guides(colour = guide_legend(nrow = 1, override.aes = list(size = 4)))
-ggsave(paste0("../output/", outName, "/", outName, "_umap_bySample.png"), width =7, height = 7)
+                                                            ) + guides(colour = guide_legend(nrow = 1, override.aes = list(size = 3)))
+ggsave(paste0("../output/", outName, "/", outName, "_umap_bycellSource.png"), width =8, height = 8)
 
 
 ### Stacked bar graph by clusMain
 p <- stackedBar(seu.obj = seu.obj, downSampleBy = "name", groupBy = "name", clusters = clusMain) + scale_x_discrete(expand = c(0, 0)) +
 scale_fill_manual(labels = levels(seu.obj$name), 
                     values = levels(seu.obj$colz)) + 
-    theme(axis.title.y = element_blank(),
+    theme(axis.title.y = element_text(14),
         axis.title.x = element_text(size = 14),
         axis.text = element_text(size = 12))
 ggsave(paste0("../output/", outName, "/", outName, "_stackedBar_cluster.png"), width =7, height = 5)

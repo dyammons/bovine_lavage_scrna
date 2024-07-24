@@ -6,9 +6,9 @@ source("/pl/active/dow_lab/dylan/repos/scrna-seq/analysis-code/customFunctions_S
 ######################################## <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 #######   begin preprocessing   ######## <<<<<<<<<<<<<<
 ######################################## <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-outName <- "20240708_bov_lav_n5n5_dxVSh"
+outName <- "20240706_bov_lav_n5n4_dxVSh"
 
-load10x(din = "../input_viral_correct/", dout = "../output/s1_viral/", outName = outName, testQC = F,
+load10x(din = "../input_viral/", dout = "../output/s1_viral/", outName = outName, testQC = F,
         nFeature_RNA_high = 6500, nFeature_RNA_low = 200, 
         nCount_RNA_high = 40000, nCount_RNA_low = 100, 
         percent.mt_high = 12.5, 
@@ -18,12 +18,12 @@ load10x(din = "../input_viral_correct/", dout = "../output/s1_viral/", outName =
         removeDubs = TRUE, removeRBC_pal = FALSE, 
         pal_feats = NULL, isolatePalRBC = FALSE,
         featPlots = c("PTPRC", "CD3E", "CD8A", "GZMA", 
-                      "IL7R", "ITGAM", "BoLA-DRA", 
-                      "CD4", "MX1", "DNAJB1")
+                      "IL7R", "ANPEP", "FLT3", "DLA-DRA", 
+                      "CD4", "MS4A1", "PPBP","HBM")
        )
 
 #integrate the data using all of the four Seurat v5 integration methods
-seu.obj <- integrateData(din = "../output/s1_viral/", dout = "../output/s2/", outName = outName, normalization.method = "LogNormalize",
+seu.obj <- integrateData(din = "../output/s1_viral/", dout = "../output/s2_viral/", outName = outName, normalization.method = "LogNormalize",
                          runAllMethods = TRUE, indReClus = F)
 
 # #use clustree to identify clustering parameters that appear most appropriate
@@ -37,8 +37,8 @@ for (x in list("integrated.cca", "integrated.harmony", "integrated.joint", "inte
                            prefix = "RNA_snn_res.", assay = "RNA", reduction = x,
                            saveRDS = F, return_obj = T, returnFeats = T,
                            features = c("PTPRC", "CD3E", "CD8A", "GZMA", 
-                      "IL7R", "D1P01_gp01", "NS1", "ITGAM", "BoLA-DRA", 
-                      "CD4", "MX1", "PPBP","DNAJB1")
+                                        "IL7R", "ANPEP", "FLT3", "DLA-DRA", 
+                                        "CD4", "MS4A1", "PPBP","HBM")
                           )
 }
 

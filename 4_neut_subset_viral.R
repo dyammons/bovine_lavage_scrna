@@ -8,16 +8,16 @@ source("/pl/active/dow_lab/dylan/repos/scrna-seq/analysis-code/customFunctions_S
 ######################################## <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 #set output param
-outName <- "neut_viral"
+outName <- "neut"
 reduction <- "umap.integrated.harmony"
 reduction2 <- "integrated.harmony" 
 clusMain <- "clusterID_integrated.harmony"
 contrast <- c("Diseased", "Healthy") #code will test first vs second
 
 #load in the proprocessed data & subset on pop of interest
-seu.obj <- readRDS("../output/s3/20240708_bov_lav_n5n5_dxVSh_viral_S3.rds")
+seu.obj <- readRDS("../output/s3/20240313_bov_lav_n5n5_dxVSh_S3.rds")
 seu.obj <- cleanMeta(seu.obj)
-seu.obj <- loadMeta(seu.obj = seu.obj, metaFile = "./metaData/allCells_viral_ID.csv", groupBy = "clusterID_integrated.harmony", metaAdd = "majorID")
+seu.obj <- loadMeta(seu.obj = seu.obj, metaFile = "./metaData/allCells_ID.csv", groupBy = "clusterID_integrated.harmony", metaAdd = "majorID")
 seu.obj <- loadMeta(seu.obj = seu.obj, metaFile = "./metaData/refColz.csv", groupBy = "orig.ident", metaAdd = "cellSource")
 seu.obj <- loadMeta(seu.obj = seu.obj, metaFile = "./metaData/refColz.csv", groupBy = "orig.ident", metaAdd = "name")
 seu.obj <- loadMeta(seu.obj = seu.obj, metaFile = "./metaData/refColz.csv", groupBy = "name", metaAdd = "colz")
