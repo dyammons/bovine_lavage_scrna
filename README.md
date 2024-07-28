@@ -26,13 +26,13 @@ cd /pl/active/dow_lab/dylan/bov_lav_scRNA/
 git clone https://github.com/dyammons/bovine_lavage_scrna.git
 
 #rename the repository
-mv bovine_lavage_scrna scripts-gg
+mv bovine_lavage_scrna scripts-gj
 
 #enter repo
-cd scripts-gg/
+cd scripts-gj/
 
 #create your own branch to work on!
-git checkout -b gg
+git checkout -b gj
 ```
 
 <br>
